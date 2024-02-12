@@ -2,9 +2,11 @@ import 'dotenv/config';
 import express from "express";
 import bodyParser from "body-parser";
 import  pg  from "pg";
+import bcrypt from "bcrypt";
 
 const app = express();
 const port = 3000;
+const saltRounds = 10;
 
 const db = new pg.Client({
   user: "postgres",
@@ -42,35 +44,49 @@ app.post("/register", async (req, res) => {
     if(checkResult.rows.length > 0) {
       res.send("Email already exists. Try logging in.");
     } else {
-      const result = await db.query(
-        "INSERT INTO users (email, password) VALUES ($1, $2)",
-        [email, password]
-      );
-      console.log(result);
-      res.render("secrets.ejs");
+      //password hashing
+      bcrypt.hash(password, saltRounds, async (err, hash) => {
+        if (err) {
+          console.log("Error hashing password:", err);
+        } else {
+          const result = await db.query(
+            "INSERT INTO users (email, password) VALUES ($1, $2)",
+            [email, hash]
+          );
+          console.log(result);
+          res.render("secrets.ejs");
+        }
+      });
     }
   } catch (err) {
     console.log(err);
   }
-
 });
 
 app.post("/login", async (req, res) => {
   const email= req.body.username;
-  const password= req.body.password;
+  const loginPassword= req.body.password;
 
   try {
     const result = await db.query("select * FROM users WHERE email = $1",[
       email,
     ]);
     if (result.rows.length > 0) {
+      console.log(result.rows);
       const user = result.rows[0];
-      const storedPassword = user.password;
-      if (password === storedPassword) {
-        res.render("secrets.ejs");
-      } else {
-        res.send("Incorrect password");
-      }
+      const storedHashedPassword = user.password;
+
+      bcrypt.compare(loginPassword, storedHashedPassword, (err, result) => {
+        if (err) {
+          console.log("Error comparing passwords!", err);
+        } else {
+          if (result) {
+            res.render("secrets.ejs");
+          } else {
+            res.send("Incorrect password");
+          }
+        }
+      });
     } else {
       res.send("user not found");
     }
