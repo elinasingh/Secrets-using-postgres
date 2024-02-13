@@ -16,7 +16,7 @@ app.use(express.static("public"));
 
 app.use(
   session({
-    secret: "littlesecret",
+    secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: true,
     cookie: {
@@ -29,11 +29,11 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 const db = new pg.Client({
-  user: "postgres",
-  host: "localhost",
-  database: "secrets",
+  user: process.env.CLIENT_ID,
+  host: process.env.CLIENT_HOST,
+  database: process.env.CLIENT_DATABASE,
   password: process.env.CLIENT_PASSWORD,
-  port: "5432",
+  port: process.env.CLIENT_PORT,
 });
 db.connect();
 
@@ -51,7 +51,7 @@ app.get("/register", (req, res) => {
 });
 
 app.get("/secrets", (req, res) => {
- console.log(req.user);
+ //console.log(req.user);
   if(req.isAuthenticated()) {
     res.render("secrets.ejs");
   } else {
@@ -103,7 +103,7 @@ app.post(
 );
 
 passport.use(new Strategy(async function verify(username, password, cb) {
-  console.log(username);
+  //console.log(username);
 
   try {
     const result = await db.query("select * FROM users WHERE email = $1",[
@@ -135,11 +135,11 @@ passport.use(new Strategy(async function verify(username, password, cb) {
 }));
 
 passport.serializeUser((user, cb) => {
-  cb(null, user);
+  cb(null, user);    //save the data of the user who's loggedin to local storage
 });
 
 passport.deserializeUser((user, cb) => {
-  cb(null, user);
+  cb(null, user);   //saves user info to local sessions & when you want to get hold of the user, it deserializes back
 });
 
 app.listen(port, () => {
